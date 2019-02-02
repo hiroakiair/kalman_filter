@@ -1,0 +1,82 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def kalman_filter(A, B, Bu, C, sigma_v, sigma_w, u, y, xhat,P):
+    #事前推定
+    xhatm = A*xhat + Bu*u
+    Pm = A*P*A.T + sigma_v*B*B.T
+    #カルマンゲイン
+    G = Pm*C.T/(C*Pm*C.T + sigma_w)
+    #事後推定
+    xhat_new = xhatm + G*(y - C*xhatm)
+    P_new = (np.eye(A.shape[0]) - G*C)*Pm
+    
+    return xhat_new, P_new, G
+
+#問題設定
+#制御システム設計論 2016年 第4問
+A = np.mat([[1.0, 1.0],[0.0, 1.0]])
+b = np.mat([[0.0], [1.0]])
+c = np.mat([[0.0, 1.0]])
+sigma_v = 10
+sigma_w = 20
+alpha = 1
+N = 300
+#雑音信号の設定
+v = np.random.normal(0, sigma_v, N)
+w = np.random.normal(0, sigma_w, N)
+#状態空間モデルを用いた時系列データの生成
+#Rem 表現定理
+x = np.mat([[0.0], [0.0]])
+y = np.mat([[0.0], [0.0]])
+X = [x]
+
+y = c*x + w[0]
+Y = [y]
+for k in range(N):
+    x = A*x + b*v[k-1]
+    #x = A*x
+    X.append(x)
+    y = c*x + w[k-1]
+    #y = c*x
+    Y.append(y)
+
+#カルマンフィルタによる状態推定
+x_hat = np.mat([[0.0], [0.0]])
+X_hat = [x_hat]
+#初期推定
+P = np.mat([[alpha, 0],[0.0, alpha]])
+#推定値の更新
+for k in range(N):
+    x_hat_new = kalman_filter(A, b, 0, c, sigma_v, sigma_w, 0 ,Y[k+1], X_hat[k], P)[0]
+    X_hat.append(x_hat_new)
+    P = kalman_filter(A, b, 0, c, sigma_v, sigma_w, 0 ,Y[k+1], X_hat[k], P)[1]
+
+#描画
+t = np.arange(0, N, 1)
+x1 = np.zeros(N)
+x1_hat = np.zeros(N)
+x2 = np.zeros(N)
+x2_hat = np.zeros(N)
+
+
+for k in range(N):
+    x1_hat[k] = X_hat[k][0,0] 
+    x1[k] = X[k][0,0]
+    x2_hat[k] = X_hat[k][1,0] 
+    x2[k] = X[k][1,0]
+    
+plt.subplot(211)
+plt.plot(t, x1, label = "x1")
+plt.plot(t, x1_hat, label = "x1_hat")
+plt.title("kalman_filter ")
+plt.xlabel("k")
+plt.ylabel("x1")
+plt.legend() 
+
+plt.subplot(212)
+plt.plot(t, x2,  label = "x2")
+plt.plot(t, x2_hat, label = "x2_hat")
+plt.xlabel("k")
+plt.ylabel("x2")
+plt.legend() 
